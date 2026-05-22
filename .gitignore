@@ -4,6 +4,7 @@ __pycache__/
 dist/
 build/
 *.spec
+!AntigravityProfileSwitcher.spec
 .venv/
 venv/
 .env
