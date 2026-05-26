@@ -25,12 +25,15 @@ class TestSwitcher(unittest.TestCase):
             patch("src.profiles.PROFILES_DIR", self.switcher_data / "profiles"),
             patch("src.profiles.STATE_FILE", self.switcher_data / "state.json"),
             patch("src.profiles.read_credential", return_value=FAKE_CRED_A),
+            patch("src.profiles.encrypt_data", side_effect=lambda d: json.dumps(d).encode()),
+            patch("src.profiles.decrypt_data", side_effect=lambda b: json.loads(b.decode())),
             patch("src.switcher.read_credential", return_value=FAKE_CRED_A),
             patch("src.switcher.write_credential", side_effect=mock_write),
             patch("src.switcher.close", return_value=True),
             patch("src.switcher.launch", return_value=True),
             patch("src.switcher.is_running", return_value=True),
             patch("src.switcher.time.sleep"),
+            patch("src.credman.encrypt_data", side_effect=lambda d: json.dumps(d).encode()),
         ]
         for p in self.patches:
             p.start()
@@ -44,7 +47,7 @@ class TestSwitcher(unittest.TestCase):
         # Create ProfileB manually
         profile_b_dir = self.pm.get_profile_dir("ProfileB")
         profile_b_dir.mkdir(parents=True, exist_ok=True)
-        (profile_b_dir / "credential.json").write_text(json.dumps(FAKE_CRED_B))
+        (profile_b_dir / "credential.bin").write_bytes(json.dumps(FAKE_CRED_B).encode())
         (profile_b_dir / "meta.json").write_text(json.dumps({"name": "ProfileB", "email": "b@gmail.com", "created": ""}))
 
     def tearDown(self):
@@ -64,7 +67,7 @@ class TestSwitcher(unittest.TestCase):
         switch_profile(self.pm, "ProfileB")
 
         # ProfileA's credential should be backed up
-        backed_up = json.loads((self.pm.get_profile_dir("ProfileA") / "credential.json").read_text())
+        backed_up = json.loads((self.pm.get_profile_dir("ProfileA") / "credential.bin").read_bytes().decode())
         self.assertEqual(backed_up["email"], "a@gmail.com")
 
 

@@ -40,7 +40,7 @@ def _backup_current(pm: ProfileManager):
     """Save current Antigravity credential back to the active profile's storage."""
     current_cred = read_credential()
     if current_cred:
+        from src.credman import encrypt_data
         profile_dir = pm.get_profile_dir(pm.active_profile)
         profile_dir.mkdir(parents=True, exist_ok=True)
-        import json
-        (profile_dir / "credential.json").write_text(json.dumps(current_cred, indent=2), encoding="utf-8")
+        (profile_dir / "credential.bin").write_bytes(encrypt_data(current_cred))

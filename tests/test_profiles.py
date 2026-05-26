@@ -1,4 +1,5 @@
 import json
+import json
 import shutil
 import tempfile
 import unittest
@@ -19,6 +20,8 @@ class TestProfileManager(unittest.TestCase):
             patch("src.profiles.PROFILES_DIR", self.switcher_data / "profiles"),
             patch("src.profiles.STATE_FILE", self.switcher_data / "state.json"),
             patch("src.profiles.read_credential", return_value=FAKE_CRED),
+            patch("src.profiles.encrypt_data", side_effect=lambda d: json.dumps(d).encode()),
+            patch("src.profiles.decrypt_data", side_effect=lambda b: json.loads(b.decode())),
         ]
         for p in self.patches:
             p.start()
@@ -52,7 +55,9 @@ class TestProfileManager(unittest.TestCase):
 
     def test_get_profile_credential(self):
         self.pm.save_current("X")
-        cred = self.pm.get_profile_credential("X")
+        # Patch decrypt to return the data
+        with patch("src.profiles.decrypt_data", return_value=FAKE_CRED):
+            cred = self.pm.get_profile_credential("X")
         self.assertEqual(cred["email"], "test@gmail.com")
 
 

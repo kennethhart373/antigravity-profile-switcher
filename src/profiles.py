@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from src.credman import read_credential, write_credential
+from src.credman import read_credential, write_credential, encrypt_data, decrypt_data
 
 APP_DATA = Path(os.environ["APPDATA"]) / "AntigravityProfileSwitcher"
 PROFILES_DIR = APP_DATA / "profiles"
@@ -49,8 +49,8 @@ class ProfileManager:
         profile_dir = PROFILES_DIR / name
         profile_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save credential data
-        (profile_dir / "credential.json").write_text(json.dumps(cred_data, indent=2), encoding="utf-8")
+        # Save credential data (encrypted with DPAPI)
+        (profile_dir / "credential.bin").write_bytes(encrypt_data(cred_data))
 
         # Extract email from token data
         email = self._extract_email(cred_data)
@@ -69,9 +69,16 @@ class ProfileManager:
         return PROFILES_DIR / name
 
     def get_profile_credential(self, name: str) -> dict | None:
-        cred_file = PROFILES_DIR / name / "credential.json"
+        cred_file = PROFILES_DIR / name / "credential.bin"
         if cred_file.exists():
-            return json.loads(cred_file.read_text(encoding="utf-8"))
+            return decrypt_data(cred_file.read_bytes())
+        # Fallback: read legacy unencrypted file and migrate
+        legacy = PROFILES_DIR / name / "credential.json"
+        if legacy.exists():
+            data = json.loads(legacy.read_text(encoding="utf-8"))
+            cred_file.write_bytes(encrypt_data(data))
+            legacy.unlink()
+            return data
         return None
 
     def delete_profile(self, name: str):
